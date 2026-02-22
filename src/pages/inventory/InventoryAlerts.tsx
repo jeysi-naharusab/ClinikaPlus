@@ -29,6 +29,20 @@ export default function InventoryAlerts() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<InventoryRow | null>(null);
+  const [restockTarget, setRestockTarget] = useState<InventoryAlert | null>(null);
+  const [restockDetails, setRestockDetails] = useState({
+    supplier: '',
+    quantity: '',
+    neededBy: '',
+    notes: '',
+  });
+  const [restockErrors, setRestockErrors] = useState({
+    supplier: '',
+    quantity: '',
+    neededBy: '',
+  });
+  const [createdRequestIds, setCreatedRequestIds] = useState<Record<string, true>>({});
+  const [isRestockSuccessOpen, setIsRestockSuccessOpen] = useState(false);
 
   const alerts = useMemo<InventoryAlert[]>(() => {
     return inventoryItems
@@ -110,6 +124,64 @@ export default function InventoryAlerts() {
   }, [currentPage, totalPages]);
 
   const pagedAlerts = filteredAlerts.slice((currentPage - 1) * ALERTS_PAGE_SIZE, currentPage * ALERTS_PAGE_SIZE);
+
+  function openCreateRestockRequest(alert: InventoryAlert) {
+    setRestockTarget(alert);
+    setRestockDetails({
+      supplier: getMedicationMetaFromAlert(alert).supplier,
+      quantity: String(alert.suggestedRestock),
+      neededBy: '2026-03-01',
+      notes: '',
+    });
+    setRestockErrors({
+      supplier: '',
+      quantity: '',
+      neededBy: '',
+    });
+  }
+
+  function closeCreateRestockRequest() {
+    setRestockTarget(null);
+    setRestockErrors({
+      supplier: '',
+      quantity: '',
+      neededBy: '',
+    });
+  }
+
+  function getMedicationMetaFromAlert(alert: InventoryAlert) {
+    const matchedItem = inventoryItems.find((item) => item.id === alert.id);
+    if (!matchedItem) {
+      return {
+        batch: 'N/A',
+        category: alert.category,
+        supplier: 'PharmaPlus',
+        suggestedRestock: `${alert.suggestedRestock} ${alert.unit}`,
+      };
+    }
+    return {
+      batch: matchedItem.batch,
+      category: matchedItem.category,
+      supplier: 'PharmaPlus',
+      suggestedRestock: `${alert.suggestedRestock} ${alert.unit}`,
+    };
+  }
+
+  function confirmRestockRequest() {
+    if (!restockTarget) return;
+
+    const nextErrors = {
+      supplier: restockDetails.supplier.trim() ? '' : 'Supplier is required.',
+      quantity: Number(restockDetails.quantity) > 0 ? '' : 'Quantity must be greater than 0.',
+      neededBy: restockDetails.neededBy ? '' : 'Needed-by date is required.',
+    };
+    setRestockErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) return;
+
+    setCreatedRequestIds((prev) => ({ ...prev, [restockTarget.id]: true }));
+    setRestockTarget(null);
+    setIsRestockSuccessOpen(true);
+  }
 
   function getMedicationMeta(item: InventoryRow) {
     return {
@@ -221,7 +293,17 @@ export default function InventoryAlerts() {
                   >
                     View
                   </button>
-                  <button className="text-blue-600 hover:text-blue-700">Create Restock Request</button>
+                  <button
+                    className={`${
+                      createdRequestIds[alert.id]
+                        ? 'cursor-not-allowed text-gray-400'
+                        : 'text-blue-600 hover:text-blue-700'
+                    }`}
+                    onClick={() => openCreateRestockRequest(alert)}
+                    disabled={Boolean(createdRequestIds[alert.id])}
+                  >
+                    {createdRequestIds[alert.id] ? 'Request Created' : 'Create Restock Request'}
+                  </button>
                 </div>
               </div>
             ))}
@@ -278,6 +360,92 @@ export default function InventoryAlerts() {
               <p>Suggested Restock: <span className="font-bold text-gray-800">{getMedicationMeta(selectedItem).suggestedRestock}</span></p>
               <p>Last Updated: <span className="font-bold text-gray-800">{getMedicationMeta(selectedItem).lastUpdated}</span></p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {restockTarget && (
+        <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/20 p-4 pb-6 pt-20 backdrop-blur-[1px]" onClick={closeCreateRestockRequest}>
+          <div className="w-full max-w-[520px] rounded-2xl border border-gray-300 bg-gray-100 p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between border-b border-gray-300 pb-3">
+              <h2 className="text-xl font-semibold text-gray-800">Create Restock Request</h2>
+              <button type="button" onClick={closeCreateRestockRequest} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gray-300 text-gray-600 hover:text-gray-700">
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="rounded-xl bg-gray-200/60 p-3 text-sm text-gray-700">
+              <p><span className="font-semibold text-gray-800">Medication:</span> {restockTarget.name}</p>
+              <p><span className="font-semibold text-gray-800">Category:</span> {restockTarget.category}</p>
+              <p><span className="font-semibold text-gray-800">Current Stock:</span> {restockTarget.lowStock} {restockTarget.unit}</p>
+              <p><span className="font-semibold text-gray-800">Suggested Restock:</span> {restockTarget.suggestedRestock} {restockTarget.unit}</p>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <label className="text-sm text-gray-700">
+                Supplier
+                <input
+                  className="mt-1 h-9 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm"
+                  value={restockDetails.supplier}
+                  onChange={(e) => setRestockDetails((prev) => ({ ...prev, supplier: e.target.value }))}
+                />
+                {restockErrors.supplier && <p className="mt-1 text-xs text-red-500">{restockErrors.supplier}</p>}
+              </label>
+
+              <label className="text-sm text-gray-700">
+                Quantity ({restockTarget.unit})
+                <input
+                  type="number"
+                  min={1}
+                  className="mt-1 h-9 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm"
+                  value={restockDetails.quantity}
+                  onChange={(e) => setRestockDetails((prev) => ({ ...prev, quantity: e.target.value }))}
+                />
+                {restockErrors.quantity && <p className="mt-1 text-xs text-red-500">{restockErrors.quantity}</p>}
+              </label>
+
+              <label className="text-sm text-gray-700 md:col-span-2">
+                Needed By
+                <input
+                  type="date"
+                  className="mt-1 h-9 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm"
+                  value={restockDetails.neededBy}
+                  onChange={(e) => setRestockDetails((prev) => ({ ...prev, neededBy: e.target.value }))}
+                />
+                {restockErrors.neededBy && <p className="mt-1 text-xs text-red-500">{restockErrors.neededBy}</p>}
+              </label>
+
+              <label className="text-sm text-gray-700 md:col-span-2">
+                Notes (Optional)
+                <textarea
+                  className="mt-1 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm"
+                  rows={3}
+                  value={restockDetails.notes}
+                  onChange={(e) => setRestockDetails((prev) => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Add handling or urgency notes"
+                />
+              </label>
+            </div>
+
+            <button
+              type="button"
+              onClick={confirmRestockRequest}
+              className="mt-4 h-10 w-full rounded-lg bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              Confirm Restock Request
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isRestockSuccessOpen && (
+        <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/20 p-4 pb-6 pt-20 backdrop-blur-[1px]" onClick={() => setIsRestockSuccessOpen(false)}>
+          <div className="w-full max-w-sm rounded-2xl border border-gray-300 bg-gray-100 p-6 text-center shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-2xl font-bold text-gray-800">Restock Request Created</h3>
+            <p className="mt-2 text-sm text-gray-600">The request was recorded and marked for supplier coordination.</p>
+            <button type="button" onClick={() => setIsRestockSuccessOpen(false)} className="mt-5 h-9 w-28 rounded-lg bg-blue-600 text-sm font-semibold text-white">
+              Done
+            </button>
           </div>
         </div>
       )}

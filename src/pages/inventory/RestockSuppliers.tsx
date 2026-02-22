@@ -257,7 +257,7 @@ export default function RestockSuppliers() {
     <div className="space-y-5">
       <h1 className="text-3xl font-bold tracking-tight text-gray-800">Inventory | Restock and Suppliers</h1>
 
-      <section className="rounded-2xl bg-gray-300/80 p-5 space-y-5">
+      <section className="flex flex-col gap-5 rounded-2xl bg-gray-300/80 p-5">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <article className="rounded-2xl border border-gray-200 bg-gray-100 p-4">
             <div className="flex items-start justify-between">
@@ -296,7 +296,7 @@ export default function RestockSuppliers() {
           </article>
         </div>
 
-        <div className="rounded-2xl bg-gray-100 p-4">
+        <div className="order-2 rounded-2xl bg-gray-100 p-4">
           <div className="space-y-3">
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -402,9 +402,13 @@ export default function RestockSuppliers() {
           </div>
         </div>
 
-        <div className="rounded-2xl bg-gray-100 p-4">
+        <div className="order-1 rounded-2xl bg-gray-100 p-4 md:p-5">
           <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-wrap items-center gap-2">
+              <div className="mr-2 flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-gray-500" />
+                <h2 className="text-xl font-semibold text-gray-700">Supplier Table</h2>
+              </div>
               <Button
                 className="inline-flex h-10 items-center gap-2 whitespace-nowrap bg-green-500 pl-3 pr-4 py-1.5 text-sm hover:bg-green-600"
                 onClick={() => setModal('add')}
@@ -428,17 +432,17 @@ export default function RestockSuppliers() {
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl">
-            <table className="min-w-full text-sm">
+          <div className="overflow-x-auto rounded-xl border border-gray-200">
+            <table className="min-w-full table-fixed text-sm">
               <thead className="bg-gray-200/90 text-gray-700">
                 <tr>
-                  <th className="px-3 py-2 text-left font-semibold">ID</th>
-                  <th className="px-3 py-2 text-left font-semibold">Supplier Name</th>
-                  <th className="px-3 py-2 text-left font-semibold">Total Requests</th>
-                  <th className="px-3 py-2 text-left font-semibold">Completed</th>
-                  <th className="px-3 py-2 text-left font-semibold">Cancelled</th>
-                  <th className="px-3 py-2 text-left font-semibold">Status</th>
-                  <th className="px-3 py-2 text-left font-semibold">Action</th>
+                  <th className="w-[14%] px-3 py-2 text-left font-semibold">ID</th>
+                  <th className="w-[24%] px-3 py-2 text-left font-semibold">Supplier Name</th>
+                  <th className="w-[14%] px-3 py-2 text-left font-semibold">Total Requests</th>
+                  <th className="w-[12%] px-3 py-2 text-left font-semibold">Completed</th>
+                  <th className="w-[12%] px-3 py-2 text-left font-semibold">Cancelled</th>
+                  <th className="w-[14%] px-3 py-2 text-left font-semibold">Status</th>
+                  <th className="w-[10%] px-3 py-2 text-left font-semibold">Action</th>
                 </tr>
               </thead>
               <tbody>
