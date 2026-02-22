@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Search,
@@ -12,11 +12,10 @@ import {
   ReceiptText,
   Stethoscope,
   CircleGauge,
+  CalendarDays,
 } from 'lucide-react';
 import Pagination from '../../components/ui/Pagination.tsx';
-import { billingRecords } from '../../data/mockData';
-
-type BillStatus = 'Pending' | 'Paid' | 'Cancelled';
+import { useBillingPayments, type BillStatus } from '../../context/BillingPaymentsContext.tsx';
 
 type BillRow = {
   id: string;
@@ -33,6 +32,7 @@ type ServiceItem = {
 };
 
 type BillModal = 'none' | 'create' | 'view' | 'success';
+type BillingFilter = 'all' | 'pending' | 'paid' | 'cancelled';
 
 const serviceCatalog = [
   { name: 'Consultation', unitPrice: 500 },
@@ -62,7 +62,6 @@ const existingBillServices: ServiceItem[] = [
   { name: 'X-Ray', quantity: 1, unitPrice: 1200 },
 ];
 
-const bills = billingRecords as BillRow[];
 const PAGE_SIZE = 5;
 
 function money(value: number) {
@@ -78,6 +77,16 @@ function formatPhp(value: number) {
   return `PHP ${Math.round(value).toLocaleString()}`;
 }
 
+function formatDateForTable(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
+  });
+}
+
 function StatusPill({ status }: { status: string }) {
   if (status !== 'Pending') return null;
   return (
@@ -87,8 +96,33 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
+function normalizeBillStatus(value: string): BillStatus {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'paid') return 'Paid';
+  if (normalized === 'cancelled' || normalized === 'canceled') return 'Cancelled';
+  return 'Pending';
+}
+
+function statusCode(status: BillStatus) {
+  if (status === 'Paid') return 'PD';
+  if (status === 'Cancelled') return 'CN';
+  return 'PN';
+}
+
+function toAutoIds(status: BillStatus, records: BillRow[]) {
+  const code = statusCode(status);
+  const next = records.filter((record) => record.status === status).length + 1;
+  const sequence = String(next).padStart(4, '0');
+  return {
+    billId: `B-${code}-${sequence}`,
+    patientId: `P-${code}-${sequence}`,
+  };
+}
+
 export default function BillingRecords() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [billingFilter, setBillingFilter] = useState<BillingFilter>('all');
+  const { billingRecords, addBill } = useBillingPayments();
   const [modal, setModal] = useState<BillModal>('none');
   const [selectedBill, setSelectedBill] = useState<BillRow | null>(null);
   const [billIdInput, setBillIdInput] = useState('');
@@ -102,15 +136,21 @@ export default function BillingRecords() {
   const [showServicePicker, setShowServicePicker] = useState(false);
   const [showMedicationPicker, setShowMedicationPicker] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const visitDateInputRef = useRef<HTMLInputElement | null>(null);
 
   const filteredBills = useMemo(() => {
     const normalized = searchTerm.trim().toLowerCase();
-    if (!normalized) return bills;
-
-    return bills.filter((bill) => {
-      return bill.patient.toLowerCase().includes(normalized) || bill.id.toLowerCase().includes(normalized);
+    return billingRecords.filter((bill) => {
+      const matchesSearch =
+        !normalized || bill.patient.toLowerCase().includes(normalized) || bill.id.toLowerCase().includes(normalized);
+      const matchesFilter =
+        billingFilter === 'all' ||
+        (billingFilter === 'pending' && bill.status === 'Pending') ||
+        (billingFilter === 'paid' && bill.status === 'Paid') ||
+        (billingFilter === 'cancelled' && bill.status === 'Cancelled');
+      return matchesSearch && matchesFilter;
     });
-  }, [searchTerm]);
+  }, [billingRecords, searchTerm, billingFilter]);
 
   const summaryCards = useMemo(() => {
     const pendingBills = filteredBills.filter((bill) => bill.status === 'Pending');
@@ -156,7 +196,7 @@ export default function BillingRecords() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, billingFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBills.length / PAGE_SIZE));
 
@@ -190,9 +230,11 @@ export default function BillingRecords() {
   }, [medicationSearch]);
 
   function resetCreateForm() {
-    setBillIdInput('');
-    setBillStatusInput('');
-    setPatientIdInput('');
+    const defaultStatus: BillStatus = 'Pending';
+    const ids = toAutoIds(defaultStatus, billingRecords);
+    setBillIdInput(ids.billId);
+    setBillStatusInput(defaultStatus);
+    setPatientIdInput(ids.patientId);
     setPatientNameInput('');
     setVisitDateInput('');
     setServices([]);
@@ -213,8 +255,8 @@ export default function BillingRecords() {
     setBillIdInput(bill.id);
     setBillStatusInput(bill.status);
     setPatientIdInput('Philippine Medical Supply Trading');
-    setPatientNameInput('Juan Dela Cruz');
-    setVisitDateInput('February 21, 2026');
+    setPatientNameInput(bill.patient);
+    setVisitDateInput(bill.date);
     setServices(existingBillServices);
     setShowServicePicker(false);
     setShowMedicationPicker(false);
@@ -229,10 +271,34 @@ export default function BillingRecords() {
   }
 
   function handleSubmitBill() {
+    if (!isEditingExisting) {
+      const status = normalizeBillStatus(billStatusInput);
+      const generatedIds = toAutoIds(status, billingRecords);
+      const id = billIdInput.trim() || generatedIds.billId;
+      const patient = patientNameInput.trim() || 'Unknown Patient';
+      const date = visitDateInput.trim() || new Date().toISOString().slice(0, 10);
+      const totalAmount = `P${Math.round(total).toLocaleString()}`;
+
+      addBill({
+        id,
+        patient,
+        date,
+        total: totalAmount,
+        status,
+      });
+    }
+
     setModal('success');
   }
 
   const isEditingExisting = modal === 'view';
+
+  function handleCreateStatusChange(value: BillStatus) {
+    setBillStatusInput(value);
+    const ids = toAutoIds(value, billingRecords);
+    setBillIdInput(ids.billId);
+    setPatientIdInput(ids.patientId);
+  }
 
   return (
     <div className="space-y-5">
@@ -262,7 +328,7 @@ export default function BillingRecords() {
         </div>
 
         <div className="rounded-2xl bg-gray-100 p-4 md:p-5">
-          <h2 className="mb-4 text-5xl font-bold text-gray-800">Billing Queue</h2>
+          <h2 className="mb-3 text-3xl font-bold text-gray-800 md:text-4xl">Billing Queue</h2>
 
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-xl">
@@ -283,10 +349,19 @@ export default function BillingRecords() {
                 <PlusCircle size={16} />
                 Create New Bill
               </button>
-              <button type="button" className="flex h-10 items-center gap-1.5 rounded-xl border border-gray-300 bg-gray-100 px-3.5 text-sm font-medium text-gray-600">
-                <ChevronDown size={16} />
-                Filter
-              </button>
+              <div className="relative">
+                <select
+                  value={billingFilter}
+                  onChange={(e) => setBillingFilter(e.target.value as BillingFilter)}
+                  className="h-10 appearance-none rounded-xl border border-gray-300 bg-gray-100 pl-3 pr-9 text-sm font-medium text-gray-600 outline-none focus:ring-2 focus:ring-blue-300"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="paid">Paid</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              </div>
             </div>
           </div>
 
@@ -307,7 +382,7 @@ export default function BillingRecords() {
                   <tr key={bill.id} className="border-t border-gray-200 text-gray-800 hover:bg-gray-200/40">
                     <td className="px-3 py-2 font-semibold">{bill.id}</td>
                     <td className="px-3 py-2 font-semibold">{bill.patient}</td>
-                    <td className="px-3 py-2 font-semibold">{bill.date}</td>
+                    <td className="px-3 py-2 font-semibold">{formatDateForTable(bill.date)}</td>
                     <td className="px-3 py-2 font-semibold">{bill.total.replace('P', '₱')}</td>
                     <td className="px-3 py-2 font-semibold">{bill.status}</td>
                     <td className="px-3 py-2">
@@ -362,14 +437,22 @@ export default function BillingRecords() {
                       {isEditingExisting ? (
                         <p className="font-medium text-gray-800">{billIdInput || selectedBill?.id}</p>
                       ) : (
-                        <input value={billIdInput} onChange={(e) => setBillIdInput(e.target.value)} className="h-8 w-full rounded border border-gray-300 bg-transparent px-2" />
+                        <input value={billIdInput} readOnly className="h-8 w-full rounded border border-gray-300 bg-gray-200 px-2 text-gray-700" />
                       )}
 
                       <label className="block pt-1 text-xs text-gray-600">Bill Status</label>
                       {isEditingExisting ? (
                         <StatusPill status={billStatusInput || selectedBill?.status || 'Pending'} />
                       ) : (
-                        <input value={billStatusInput} onChange={(e) => setBillStatusInput(e.target.value)} className="h-8 w-full rounded border border-gray-300 bg-transparent px-2" />
+                        <select
+                          value={normalizeBillStatus(billStatusInput)}
+                          onChange={(e) => handleCreateStatusChange(e.target.value as BillStatus)}
+                          className="h-8 w-full rounded border border-gray-300 bg-transparent px-2"
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="Paid">Paid</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
                       )}
                     </div>
                   </div>
@@ -384,7 +467,7 @@ export default function BillingRecords() {
                       {isEditingExisting ? (
                         <p className="font-medium text-gray-800">{patientIdInput}</p>
                       ) : (
-                        <input value={patientIdInput} onChange={(e) => setPatientIdInput(e.target.value)} className="h-8 w-full rounded border border-gray-300 bg-transparent px-2" />
+                        <input value={patientIdInput} readOnly className="h-8 w-full rounded border border-gray-300 bg-gray-200 px-2 text-gray-700" />
                       )}
 
                       <label className="block pt-1 text-xs text-gray-600">Patient Name</label>
@@ -398,7 +481,27 @@ export default function BillingRecords() {
                       {isEditingExisting ? (
                         <p className="font-medium text-gray-800">{visitDateInput}</p>
                       ) : (
-                        <input value={visitDateInput} onChange={(e) => setVisitDateInput(e.target.value)} className="h-8 w-full rounded border border-gray-300 bg-transparent px-2" />
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            ref={visitDateInputRef}
+                            type="date"
+                            value={visitDateInput}
+                            onChange={(e) => setVisitDateInput(e.target.value)}
+                            className="h-8 flex-1 rounded border border-gray-300 bg-transparent px-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const picker = visitDateInputRef.current as HTMLInputElement & { showPicker?: () => void };
+                              picker.showPicker?.();
+                            }}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-200"
+                            aria-label="Open calendar"
+                            title="Open calendar"
+                          >
+                            <CalendarDays size={14} />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

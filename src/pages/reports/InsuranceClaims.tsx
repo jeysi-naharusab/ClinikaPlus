@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search,
   ChevronDown,
@@ -27,44 +28,89 @@ type InsuranceClaim = {
   dateFiled: string;
 };
 
+type PeriodFilter = 'all' | 'thisMonth' | 'last30Days' | 'thisYear';
+
+type ClaimDetailData = {
+  dateOfService?: string;
+  summaryStatus?: string;
+  patientId?: string;
+  contact?: string;
+  email?: string;
+  coverage?: string;
+  diagnosis?: string;
+  treatment?: string;
+  physician?: string;
+  documents?: string[];
+  statusHistory: string[];
+  rejectionReason?: string;
+  paymentInfo?: {
+    method: string;
+    referenceNo: string;
+    amountPaid: number;
+    paymentDate: string;
+    verifiedBy: string;
+  };
+};
+
 const claims: InsuranceClaim[] = [
-  { claimId: 'CLM-0012', patientName: 'Jhon Carlo T. Millan', insuranceProvider: 'PhilHealth', policyNo: 'PH-45892173', amount: 8500, status: 'Pending', dateFiled: '2026-03-14' },
-  { claimId: 'CLM-0013', patientName: 'Marc Anthony Petulan', insuranceProvider: 'Maxicare', policyNo: 'MX-77451209', amount: 15200, status: 'Approved', dateFiled: '2025-02-10' },
-  { claimId: 'CLM-0014', patientName: 'John Lloyd Marigza', insuranceProvider: 'Intellicare', policyNo: 'IC-33459021', amount: 6800, status: 'Paid', dateFiled: '2024-12-02' },
-  { claimId: 'CLM-0015', patientName: 'Lois Jay Rimorin', insuranceProvider: 'PhilCare', policyNo: 'PC-1123908', amount: 12450, status: 'Rejected', dateFiled: '2026-01-08' },
+  { claimId: 'CLM-0012', patientName: 'Maria Santos', insuranceProvider: 'PhilHealth', policyNo: 'PH-45892173', amount: 8500, status: 'Pending', dateFiled: '2026-02-10' },
+  { claimId: 'CLM-0013', patientName: 'John Dela Cruz', insuranceProvider: 'Maxicare', policyNo: 'MX-77451209', amount: 15200, status: 'Approved', dateFiled: '2026-02-11' },
+  { claimId: 'CLM-0014', patientName: 'Angela Reyes', insuranceProvider: 'Intellicare', policyNo: 'IC-33459021', amount: 6800, status: 'Paid', dateFiled: '2026-02-09' },
+  { claimId: 'CLM-0015', patientName: 'Robert Garcia', insuranceProvider: 'PhilCare', policyNo: 'PC-1123908', amount: 12450, status: 'Rejected', dateFiled: '2026-02-08' },
   { claimId: 'CLM-0016', patientName: 'Arrianerose Flores', insuranceProvider: 'PhilHealth', policyNo: 'PH-99342017', amount: 9300, status: 'Approved', dateFiled: '2026-07-30' },
-  { claimId: 'CLM-0017', patientName: 'John Daryl Paquibulan', insuranceProvider: 'Maxicare', policyNo: 'MX-55012984', amount: 4750, status: 'Pending', dateFiled: '2026-03-14' },
-  { claimId: 'CLM-0018', patientName: 'Dominic Sarcia', insuranceProvider: 'Intellicare', policyNo: 'IC-77431255', amount: 18900, status: 'For Verification', dateFiled: '2026-03-14' },
-  { claimId: 'CLM-0019', patientName: 'Karl Angelo Vergara', insuranceProvider: 'PhilHealth', policyNo: 'PH-12048763', amount: 7600, status: 'Approved', dateFiled: '2026-03-14' },
-  { claimId: 'CLM-0020', patientName: 'Maria Santos', insuranceProvider: 'Maxicare', policyNo: 'MX-65617924', amount: 5950, status: 'Paid', dateFiled: '2026-03-14' },
+  { claimId: 'CLM-0017', patientName: 'John Daryl Paquibulan', insuranceProvider: 'Maxicare', policyNo: 'MX-55012984', amount: 4750, status: 'Pending', dateFiled: '2026-02-14' },
+  { claimId: 'CLM-0018', patientName: 'Dominic Sarcia', insuranceProvider: 'Intellicare', policyNo: 'IC-77431255', amount: 18900, status: 'For Verification', dateFiled: '2026-02-14' },
+  { claimId: 'CLM-0019', patientName: 'Michael Torres', insuranceProvider: 'PhilCare', policyNo: 'PC-66278103', amount: 7600, status: 'For Verification', dateFiled: '2026-02-14' },
+  { claimId: 'CLM-0020', patientName: 'Katherine Dela Pena', insuranceProvider: 'Maxicare', policyNo: 'MX-65617924', amount: 5950, status: 'Paid', dateFiled: '2026-02-16' },
 ];
 
-const cardData = [
-  {
-    title: 'Pending Claims',
-    value: '12 claims',
-    note: 'Claims awaiting review or verification',
-    valueClass: 'text-amber-500',
-    chipClass: 'bg-amber-500',
-    icon: CircleDashed,
+const claimDetails: Record<string, ClaimDetailData> = {
+  'CLM-0012': {
+    dateOfService: '2026-02-09',
+    summaryStatus: 'Pending Review',
+    patientId: 'PT-00032',
+    contact: '0918-222-3344',
+    email: 'maria@email.com',
+    coverage: 'Outpatient',
+    diagnosis: 'Upper Respiratory Infection',
+    treatment: 'Consultation + Antibiotics',
+    physician: 'Dr. Ramon Cruz',
+    documents: ['Medical Certificate.pdf', 'Official Receipt.jpg'],
+    statusHistory: ['Feb 10, 2026 - Claim Submitted'],
   },
-  {
-    title: 'Approved - Awaiting Payment',
-    value: '5',
-    note: 'Approved claims pending payment collection',
-    valueClass: 'text-green-500',
-    chipClass: 'bg-green-500',
-    icon: FileCheck2,
+  'CLM-0013': {
+    summaryStatus: 'Approved',
+    patientId: 'PT-00045',
+    diagnosis: 'Acute Gastroenteritis',
+    statusHistory: ['Feb 11 - Submitted', 'Feb 12 - Under Review', 'Feb 13 - Approved'],
   },
-  {
-    title: 'Total Collected',
-    value: '\u20b1124,500',
-    note: 'Payments recorded from insurance claims this month',
-    valueClass: 'text-blue-600',
-    chipClass: 'bg-blue-600',
-    icon: WalletCards,
+  'CLM-0014': {
+    summaryStatus: 'Paid',
+    patientId: 'PT-00041',
+    paymentInfo: {
+      method: 'GCash QR',
+      referenceNo: '9876543210',
+      amountPaid: 6800,
+      paymentDate: 'Feb 12, 2026',
+      verifiedBy: 'Admin User',
+    },
+    statusHistory: ['Feb 09 - Submitted', 'Feb 10 - Approved', 'Feb 12 - Payment Recorded'],
   },
-];
+  'CLM-0015': {
+    summaryStatus: 'Rejected',
+    patientId: 'PT-00052',
+    diagnosis: 'Hypertension',
+    rejectionReason: 'Incomplete supporting documents.',
+    statusHistory: ['Feb 08 - Submitted', 'Feb 09 - Rejected'],
+  },
+  'CLM-0019': {
+    summaryStatus: 'Under Verification',
+    patientId: 'PT-00061',
+    diagnosis: 'Minor Fracture',
+    treatment: 'X-Ray + Casting',
+    statusHistory: ['Feb 14 - Submitted', 'Feb 15 - Under Verification'],
+  },
+};
 
 function statusPill(status: ClaimStatus) {
   switch (status) {
@@ -95,29 +141,67 @@ function toPeso(amount: number) {
   return `\u20b1${amount.toLocaleString()}`;
 }
 
+function formatLongDate(dateStr: string) {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return dateStr;
+  return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+}
+
+function modalFooterActions(status: ClaimStatus) {
+  if (status === 'Pending' || status === 'For Verification') return ['Close', 'Reject', 'Approve'];
+  if (status === 'Approved') return ['Close', 'Collect Payment'];
+  if (status === 'Rejected') return ['Close', 'Archive'];
+  return ['Close', 'View Receipt', 'Archive'];
+}
+
+function matchesPeriod(dateFiled: string, period: PeriodFilter) {
+  if (period === 'all') return true;
+  const filedDate = new Date(dateFiled);
+  if (Number.isNaN(filedDate.getTime())) return false;
+
+  const now = new Date();
+  if (period === 'thisMonth') {
+    return filedDate.getFullYear() === now.getFullYear() && filedDate.getMonth() === now.getMonth();
+  }
+  if (period === 'thisYear') {
+    return filedDate.getFullYear() === now.getFullYear();
+  }
+
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(now.getDate() - 30);
+  return filedDate >= thirtyDaysAgo && filedDate <= now;
+}
+
 export default function InsuranceClaims() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<ClaimStatus | 'all'>('all');
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [activeClaim, setActiveClaim] = useState<InsuranceClaim | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredClaims = useMemo(() => {
     const normalized = searchTerm.trim().toLowerCase();
 
     return claims.filter((claim) => {
-      return (
+      const matchesSearch =
         !normalized ||
         claim.claimId.toLowerCase().includes(normalized) ||
         claim.patientName.toLowerCase().includes(normalized) ||
         claim.policyNo.toLowerCase().includes(normalized) ||
-        claim.insuranceProvider.toLowerCase().includes(normalized)
-      );
+        claim.insuranceProvider.toLowerCase().includes(normalized);
+      const matchesCategory = categoryFilter === 'all' || claim.insuranceProvider === categoryFilter;
+      const matchesStatus = statusFilter === 'all' || claim.status === statusFilter;
+      const matchesDate = matchesPeriod(claim.dateFiled, periodFilter);
+      return matchesSearch && matchesCategory && matchesStatus && matchesDate;
     });
-  }, [searchTerm]);
+  }, [searchTerm, categoryFilter, statusFilter, periodFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, categoryFilter, statusFilter, periodFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredClaims.length / 5));
 
@@ -128,6 +212,40 @@ export default function InsuranceClaims() {
   }, [currentPage, totalPages]);
 
   const visibleClaims = filteredClaims.slice((currentPage - 1) * 5, currentPage * 5);
+  const activeClaimDetails = activeClaim ? claimDetails[activeClaim.claimId] : undefined;
+  const summaryCards = useMemo(() => {
+    const pendingClaims = filteredClaims.filter((claim) => claim.status === 'Pending' || claim.status === 'For Verification');
+    const approvedClaims = filteredClaims.filter((claim) => claim.status === 'Approved');
+    const paidClaims = filteredClaims.filter((claim) => claim.status === 'Paid');
+    const totalCollected = paidClaims.reduce((sum, claim) => sum + claim.amount, 0);
+
+    return [
+      {
+        title: 'Pending Claims',
+        value: `${pendingClaims.length} claims`,
+        note: 'Claims awaiting review or verification',
+        valueClass: 'text-amber-500',
+        chipClass: 'bg-amber-500',
+        icon: CircleDashed,
+      },
+      {
+        title: 'Approved - Awaiting Payment',
+        value: `${approvedClaims.length}`,
+        note: 'Approved claims pending payment collection',
+        valueClass: 'text-green-500',
+        chipClass: 'bg-green-500',
+        icon: FileCheck2,
+      },
+      {
+        title: 'Total Collected',
+        value: toPeso(totalCollected),
+        note: 'Payments recorded from current table results',
+        valueClass: 'text-blue-600',
+        chipClass: 'bg-blue-600',
+        icon: WalletCards,
+      },
+    ];
+  }, [filteredClaims]);
 
   return (
     <div className="space-y-5">
@@ -135,7 +253,7 @@ export default function InsuranceClaims() {
 
       <section className="rounded-2xl bg-gray-300/80 p-5 space-y-5">
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          {cardData.map((card) => {
+          {summaryCards.map((card) => {
             const Icon = card.icon;
             return (
               <div key={card.title} className="rounded-2xl border border-gray-200 bg-gray-100 p-4">
@@ -153,8 +271,8 @@ export default function InsuranceClaims() {
         </div>
 
         <div className="rounded-2xl bg-gray-100 p-4 md:p-5">
-          <div className="mb-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            <div className="relative w-full lg:max-w-xl">
+          <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="relative w-full xl:min-w-0 xl:flex-1 xl:max-w-2xl">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
               <input
                 placeholder="Search by Claim ID, Patient Name, Policy No."
@@ -164,39 +282,60 @@ export default function InsuranceClaims() {
               />
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 xl:overflow-visible xl:pb-0">
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(true)}
-                className="h-10 rounded-lg bg-green-500 px-3.5 text-sm font-semibold text-white flex items-center gap-1.5"
+                className="h-10 shrink-0 whitespace-nowrap rounded-lg bg-green-500 px-3.5 text-sm font-semibold text-white flex items-center gap-1.5"
               >
                 <PlusCircle size={16} />
                 Create New Claim
               </button>
 
-              <button
-                type="button"
-                className="h-10 rounded-lg border border-gray-300 bg-gray-100 px-3.5 text-sm font-medium text-gray-600 flex items-center gap-1.5"
-              >
-                <ChevronDown size={16} />
-                All Categories
-              </button>
+              <div className="relative shrink-0">
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="h-10 appearance-none rounded-lg border border-gray-300 bg-gray-100 pl-3 pr-9 text-sm font-medium text-gray-600 outline-none focus:ring-2 focus:ring-blue-300"
+                >
+                  <option value="all">All Categories</option>
+                  <option value="PhilHealth">PhilHealth</option>
+                  <option value="Maxicare">Maxicare</option>
+                  <option value="Intellicare">Intellicare</option>
+                  <option value="PhilCare">PhilCare</option>
+                </select>
+                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              </div>
 
-              <button
-                type="button"
-                className="h-10 rounded-lg border border-gray-300 bg-gray-100 px-3.5 text-sm font-medium text-gray-600 flex items-center gap-1.5"
-              >
-                <ChevronDown size={16} />
-                All Status
-              </button>
+              <div className="relative shrink-0">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | 'all')}
+                  className="h-10 appearance-none rounded-lg border border-gray-300 bg-gray-100 pl-3 pr-9 text-sm font-medium text-gray-600 outline-none focus:ring-2 focus:ring-blue-300"
+                >
+                  <option value="all">All Status</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="For Verification">For Verification</option>
+                </select>
+                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              </div>
 
-              <button
-                type="button"
-                className="h-10 rounded-lg border border-gray-300 bg-gray-100 px-3.5 text-sm font-medium text-gray-600 flex items-center gap-1.5"
-              >
-                <ChevronDown size={16} />
-                This Month
-              </button>
+              <div className="relative shrink-0">
+                <select
+                  value={periodFilter}
+                  onChange={(e) => setPeriodFilter(e.target.value as PeriodFilter)}
+                  className="h-10 appearance-none rounded-lg border border-gray-300 bg-gray-100 pl-3 pr-9 text-sm font-medium text-gray-600 outline-none focus:ring-2 focus:ring-blue-300"
+                >
+                  <option value="thisMonth">This Month</option>
+                  <option value="last30Days">Last 30 Days</option>
+                  <option value="thisYear">This Year</option>
+                  <option value="all">All Time</option>
+                </select>
+                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              </div>
             </div>
           </div>
 
@@ -252,7 +391,10 @@ export default function InsuranceClaims() {
                               className={`w-full px-3 py-1.5 text-right text-xs ${
                                 idx === 0 ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
                               }`}
-                              onClick={() => setOpenMenuId(null)}
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                setActiveClaim(claim);
+                              }}
                             >
                               {action}
                             </button>
@@ -275,8 +417,129 @@ export default function InsuranceClaims() {
         </div>
       </section>
 
+      {(activeClaim || isCreateModalOpen) &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <>
+      {activeClaim && (
+        <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/20 p-4 pb-6 pt-16 backdrop-blur-[1px]">
+          <div className="flex w-full max-w-[780px] flex-col rounded-2xl border border-gray-300 bg-gray-100 shadow-xl">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-300 px-4 py-3">
+              <h2 className="text-xl font-bold text-gray-800">Claim Details - {activeClaim.claimId}</h2>
+              <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusPill(activeClaim.status)}`}>
+                {activeClaim.status}
+              </span>
+            </div>
+
+            <div className="max-h-[60vh] space-y-4 overflow-y-auto p-4 text-sm text-gray-800">
+              <section>
+                <h3 className="mb-2 text-xs font-bold tracking-wide text-gray-600">CLAIM SUMMARY</h3>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  <p><span className="font-semibold">Claim ID:</span> {activeClaim.claimId}</p>
+                  <p><span className="font-semibold">Date Filed:</span> {formatLongDate(activeClaim.dateFiled)}</p>
+                  {activeClaimDetails?.dateOfService && <p><span className="font-semibold">Date of Service:</span> {formatLongDate(activeClaimDetails.dateOfService)}</p>}
+                  <p><span className="font-semibold">Claim Amount:</span> {toPeso(activeClaim.amount)}</p>
+                  <p><span className="font-semibold">Status:</span> {activeClaimDetails?.summaryStatus || activeClaim.status}</p>
+                </div>
+              </section>
+
+              <section>
+                <h3 className="mb-2 text-xs font-bold tracking-wide text-gray-600">PATIENT INFORMATION</h3>
+                <p className="font-semibold">{activeClaim.patientName}{activeClaimDetails?.patientId ? ` (${activeClaimDetails.patientId})` : ''}</p>
+                {(activeClaimDetails?.contact || activeClaimDetails?.email) && (
+                  <p className="text-gray-700">
+                    {activeClaimDetails?.contact || ''}{activeClaimDetails?.contact && activeClaimDetails?.email ? ' | ' : ''}{activeClaimDetails?.email || ''}
+                  </p>
+                )}
+              </section>
+
+              <section>
+                <h3 className="mb-2 text-xs font-bold tracking-wide text-gray-600">INSURANCE INFORMATION</h3>
+                <p><span className="font-semibold">Provider:</span> {activeClaim.insuranceProvider}</p>
+                <p><span className="font-semibold">Policy No:</span> {activeClaim.policyNo}</p>
+                {activeClaimDetails?.coverage && <p><span className="font-semibold">Coverage:</span> {activeClaimDetails.coverage}</p>}
+              </section>
+
+              <section>
+                <h3 className="mb-2 text-xs font-bold tracking-wide text-gray-600">MEDICAL DETAILS</h3>
+                {activeClaimDetails?.diagnosis && <p><span className="font-semibold">Diagnosis:</span> {activeClaimDetails.diagnosis}</p>}
+                {activeClaimDetails?.treatment && <p><span className="font-semibold">Treatment:</span> {activeClaimDetails.treatment}</p>}
+                {activeClaimDetails?.physician && <p><span className="font-semibold">Physician:</span> {activeClaimDetails.physician}</p>}
+              </section>
+
+              {activeClaimDetails?.documents && activeClaimDetails.documents.length > 0 && (
+                <section>
+                  <h3 className="mb-2 text-xs font-bold tracking-wide text-gray-600">DOCUMENTS</h3>
+                  <div className="space-y-1">
+                    {activeClaimDetails.documents.map((doc) => (
+                      <div key={doc} className="flex items-center justify-between rounded-md bg-gray-200 px-3 py-1.5">
+                        <span>{doc}</span>
+                        <button type="button" className="text-xs font-semibold text-blue-600 hover:text-blue-700">View</button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {activeClaim.status === 'Approved' && (
+                <section>
+                  <h3 className="mb-2 text-xs font-bold tracking-wide text-gray-600">PAYMENT INFORMATION</h3>
+                  <p>No payment recorded yet.</p>
+                </section>
+              )}
+
+              {activeClaimDetails?.paymentInfo && (
+                <section>
+                  <h3 className="mb-2 text-xs font-bold tracking-wide text-gray-600">PAYMENT INFORMATION</h3>
+                  <p><span className="font-semibold">Method:</span> {activeClaimDetails.paymentInfo.method}</p>
+                  <p><span className="font-semibold">Reference No:</span> {activeClaimDetails.paymentInfo.referenceNo}</p>
+                  <p><span className="font-semibold">Amount Paid:</span> {toPeso(activeClaimDetails.paymentInfo.amountPaid)}</p>
+                  <p><span className="font-semibold">Payment Date:</span> {activeClaimDetails.paymentInfo.paymentDate}</p>
+                  <p><span className="font-semibold">Verified By:</span> {activeClaimDetails.paymentInfo.verifiedBy}</p>
+                </section>
+              )}
+
+              {activeClaimDetails?.rejectionReason && (
+                <section>
+                  <h3 className="mb-2 text-xs font-bold tracking-wide text-gray-600">REJECTION REASON</h3>
+                  <p>{activeClaimDetails.rejectionReason}</p>
+                </section>
+              )}
+
+              <section>
+                <h3 className="mb-2 text-xs font-bold tracking-wide text-gray-600">STATUS HISTORY</h3>
+                <div className="space-y-1">
+                  {(activeClaimDetails?.statusHistory || [`${formatLongDate(activeClaim.dateFiled)} - Claim Submitted`]).map((entry) => (
+                    <p key={entry}>- {entry}</p>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-300 px-4 py-3">
+              {modalFooterActions(activeClaim.status).map((action) => (
+                <button
+                  key={action}
+                  type="button"
+                  onClick={() => setActiveClaim(null)}
+                  className={`h-9 rounded-lg px-4 text-sm font-semibold ${
+                    action === 'Close'
+                      ? 'bg-gray-300 text-gray-700'
+                      : action === 'Reject' || action === 'Archive'
+                      ? 'bg-red-500 text-white'
+                      : 'bg-blue-600 text-white'
+                  }`}
+                >
+                  {action}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-[1px] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/20 p-4 pb-6 pt-20 backdrop-blur-[1px]">
           <div className="w-full max-w-3xl rounded-2xl bg-gray-100 shadow-xl border border-gray-300 p-5">
             <div className="flex items-center justify-between border-b border-gray-300 pb-3">
               <h2 className="text-2xl font-semibold text-gray-600">Create Insurance Claim</h2>
@@ -353,6 +616,9 @@ export default function InsuranceClaims() {
           </div>
         </div>
       )}
+          </>,
+          document.body,
+        )}
     </div>
   );
 }

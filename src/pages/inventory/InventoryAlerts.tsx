@@ -235,7 +235,7 @@ export default function InventoryAlerts() {
       </section>
 
       {selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4 backdrop-blur-[1px]" onClick={() => setSelectedItem(null)}>
+        <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/20 p-4 pb-6 pt-20 backdrop-blur-[1px]" onClick={() => setSelectedItem(null)}>
           <div className="w-full max-w-[460px] rounded-2xl border border-gray-300 bg-gray-100 p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-3 flex items-center justify-between border-b border-gray-300 pb-3">
               <h2 className="flex items-center gap-2 text-2xl font-bold text-blue-600">

@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import {
   Search,
   ChevronDown,
-  PlusCircle,
   Clock3,
   FileText,
   Wallet,
@@ -18,7 +17,7 @@ import {
   MinusCircle,
 } from 'lucide-react';
 import Pagination from '../../components/ui/Pagination.tsx';
-import { paymentQueue } from '../../data/mockData';
+import { useBillingPayments } from '../../context/BillingPaymentsContext.tsx';
 
 type PaymentStatus = 'Pending' | 'Paid' | 'Processing';
 
@@ -32,6 +31,7 @@ type PaymentRow = {
 };
 
 type PaymentMethod = 'Cash' | 'GCash' | 'Maya';
+type PaymentFilter = 'all' | 'paid' | 'unpaid';
 type PaymentModal =
   | 'none'
   | 'method'
@@ -40,46 +40,29 @@ type PaymentModal =
   | 'cancelled'
   | 'gcash'
   | 'confirm'
-  | 'success';
+  | 'success'
+  | 'receipt';
 
-const summaryCards = [
-  {
-    title: 'Pending Payments',
-    value: '6 bills',
-    lines: ['₱32,300 Total', 'Avg Pending: ₱5,383'],
-    accent: 'text-amber-500',
-    chip: 'bg-amber-500',
-    icon: Clock3,
-  },
-  {
-    title: 'Paid Today',
-    value: '₱18,450',
-    lines: ['8 Transactions', 'Avg: ₱2,306'],
-    accent: 'text-green-500',
-    chip: 'bg-green-500',
-    icon: FileText,
-  },
-  {
-    title: 'Primary Payment Channel',
-    value: 'E-Wallet',
-    lines: ['52% of Total Payments This Month', '↑ 8% vs Last Month'],
-    accent: 'text-blue-600',
-    chip: 'bg-blue-600',
-    icon: Wallet,
-  },
-];
-
-const rows = (paymentQueue as PaymentRow[]).slice(0, 9).map((row) => ({
-  ...row,
-}));
 const PAGE_SIZE = 5;
 
 function formatMoney(value: number) {
   return `₱${value.toLocaleString()}`;
 }
 
+function formatDateForTable(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
+  });
+}
+
 export default function Payments() {
   const [searchTerm, setSearchTerm] = useState('');
+  const { paymentQueue } = useBillingPayments();
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all');
   const [modal, setModal] = useState<PaymentModal>('none');
   const [selectedRow, setSelectedRow] = useState<PaymentRow | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('Cash');
@@ -89,16 +72,18 @@ export default function Payments() {
 
   const filteredRows = useMemo(() => {
     const normalized = searchTerm.trim().toLowerCase();
-    if (!normalized) return rows;
-
-    return rows.filter((row) => {
-      return row.id.toLowerCase().includes(normalized) || row.patient.toLowerCase().includes(normalized);
+    return paymentQueue.filter((row) => {
+      const matchesSearch =
+        !normalized || row.id.toLowerCase().includes(normalized) || row.patient.toLowerCase().includes(normalized);
+      const matchesFilter =
+        paymentFilter === 'all' || (paymentFilter === 'paid' ? row.status === 'Paid' : row.status !== 'Paid');
+      return matchesSearch && matchesFilter;
     });
-  }, [searchTerm]);
+  }, [paymentQueue, searchTerm, paymentFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, paymentFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
 
@@ -109,6 +94,52 @@ export default function Payments() {
   }, [currentPage, totalPages]);
 
   const pagedRows = filteredRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const summaryCards = useMemo(() => {
+    const pendingRows = filteredRows.filter((row) => row.status === 'Pending' || row.status === 'Processing');
+    const paidRows = filteredRows.filter((row) => row.status === 'Paid');
+    const totalPendingAmount = pendingRows.reduce((sum, row) => sum + row.amount, 0);
+    const totalPaidAmount = paidRows.reduce((sum, row) => sum + row.amount, 0);
+    const avgPending = pendingRows.length ? Math.round(totalPendingAmount / pendingRows.length) : 0;
+    const avgPaid = paidRows.length ? Math.round(totalPaidAmount / paidRows.length) : 0;
+
+    const methodCounts = filteredRows.reduce<Record<string, number>>((acc, row) => {
+      if (row.method !== '-') {
+        acc[row.method] = (acc[row.method] || 0) + 1;
+      }
+      return acc;
+    }, {});
+    const topMethodEntry = Object.entries(methodCounts).sort((a, b) => b[1] - a[1])[0];
+    const topMethodLabel = topMethodEntry ? topMethodEntry[0] : 'N/A';
+    const topMethodCount = topMethodEntry ? topMethodEntry[1] : 0;
+
+    return [
+      {
+        title: 'Pending Payments',
+        value: `${pendingRows.length} bills`,
+        lines: [`${formatMoney(totalPendingAmount)} Total`, `Avg Pending: ${formatMoney(avgPending)}`],
+        accent: 'text-amber-500',
+        chip: 'bg-amber-500',
+        icon: Clock3,
+      },
+      {
+        title: 'Paid Payments',
+        value: formatMoney(totalPaidAmount),
+        lines: [`${paidRows.length} Transactions`, `Avg Paid: ${formatMoney(avgPaid)}`],
+        accent: 'text-green-500',
+        chip: 'bg-green-500',
+        icon: FileText,
+      },
+      {
+        title: 'Primary Payment Channel',
+        value: topMethodLabel,
+        lines: [`${topMethodCount} transaction(s)`, 'Within current table results'],
+        accent: 'text-blue-600',
+        chip: 'bg-blue-600',
+        icon: Wallet,
+      },
+    ];
+  }, [filteredRows]);
 
   const changeAmount = useMemo(() => {
     if (!selectedRow) return 0;
@@ -123,6 +154,11 @@ export default function Payments() {
     setAmountReceived('');
     setGcashReference('');
     setModal('method');
+  }
+
+  function openReceiptModal(row: PaymentRow) {
+    setSelectedRow(row);
+    setModal('receipt');
   }
 
   function closeAllModals() {
@@ -165,7 +201,7 @@ export default function Payments() {
                 <p className={`mt-3 text-5xl font-bold ${card.accent}`}>{card.value}</p>
                 <div className="mt-2 space-y-1 text-gray-800">
                   {card.lines.map((line) => (
-                    <p key={line} className={`text-3.5 font-semibold ${line.startsWith('↑') ? 'text-blue-600' : ''}`}>
+                    <p key={line} className="text-3.5 font-semibold">
                       {line}
                     </p>
                   ))}
@@ -176,7 +212,7 @@ export default function Payments() {
         </div>
 
         <div className="rounded-2xl bg-gray-100 p-4 md:p-5">
-          <h2 className="mb-4 text-5xl font-bold text-gray-800">Payment Queue</h2>
+          <h2 className="mb-3 text-3xl font-bold text-gray-800 md:text-4xl">Payment Queue</h2>
 
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-xl">
@@ -189,19 +225,23 @@ export default function Payments() {
               />
             </div>
             <div className="flex gap-2">
-              <button type="button" className="flex h-10 items-center gap-1.5 rounded-xl bg-green-500 px-3.5 text-sm font-semibold text-white">
-                <PlusCircle size={16} />
-                Create New Bill
-              </button>
-              <button type="button" className="flex h-10 items-center gap-1.5 rounded-xl border border-gray-300 bg-gray-100 px-3.5 text-sm font-medium text-gray-600">
-                <ChevronDown size={16} />
-                Filter
-              </button>
+              <div className="relative">
+                <select
+                  value={paymentFilter}
+                  onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)}
+                  className="h-10 appearance-none rounded-xl border border-gray-300 bg-gray-100 pl-3 pr-9 text-sm font-medium text-gray-600 outline-none focus:ring-2 focus:ring-blue-300"
+                >
+                  <option value="all">All</option>
+                  <option value="paid">Paid</option>
+                  <option value="unpaid">Unpaid</option>
+                </select>
+                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl">
-            <table className="w-full min-w-[960px] text-sm">
+          <div className="rounded-xl">
+            <table className="w-full table-fixed text-sm">
               <thead className="bg-gray-200/90 text-gray-700">
                 <tr>
                   <th className="px-3 py-2 text-left font-semibold">ID</th>
@@ -220,7 +260,7 @@ export default function Payments() {
                     <td className="px-3 py-2 font-semibold">{row.patient}</td>
                     <td className="px-3 py-2 font-semibold">{formatMoney(row.amount)}</td>
                     <td className="px-3 py-2 font-semibold">{row.method}</td>
-                    <td className="px-3 py-2 font-semibold">{row.date}</td>
+                    <td className="px-3 py-2 font-semibold">{formatDateForTable(row.date)}</td>
                     <td className="px-3 py-2 font-semibold">{row.status}</td>
                     <td className="px-3 py-2">
                       {row.status === 'Pending' && (
@@ -228,7 +268,11 @@ export default function Payments() {
                           Pay
                         </button>
                       )}
-                      {row.status === 'Paid' && <button type="button" className="font-semibold text-blue-500">Receipt</button>}
+                      {row.status === 'Paid' && (
+                        <button type="button" onClick={() => openReceiptModal(row)} className="font-semibold text-blue-600 hover:text-blue-700">
+                          Receipt
+                        </button>
+                      )}
                       {row.status === 'Processing' && <button type="button" className="font-semibold text-blue-500">View</button>}
                     </td>
                   </tr>
@@ -519,9 +563,55 @@ export default function Payments() {
               </button>
             </div>
           )}
+
+          {modal === 'receipt' && selectedRow && (
+            <div className="w-full max-w-md rounded-2xl border border-gray-300 bg-gray-100 p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2 text-3xl font-bold text-gray-800">
+                <ReceiptText size={20} />
+                Payment Receipt
+              </div>
+              <p className="mt-1 text-sm text-gray-600">Official payment summary for this transaction.</p>
+
+              <div className="mt-4 rounded-xl bg-gray-300 p-4 text-sm text-gray-800">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Receipt No.</span>
+                    <span className="font-semibold">{`RCT-${selectedRow.id}`}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Bill ID</span>
+                    <span className="font-semibold">{selectedRow.id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Patient</span>
+                    <span className="font-semibold">{selectedRow.patient}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Date</span>
+                    <span className="font-semibold">{formatDateForTable(selectedRow.date)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Payment Method</span>
+                    <span className="font-semibold">{selectedRow.method}</span>
+                  </div>
+                  <div className="mt-3 flex justify-between border-t border-gray-400 pt-3 font-bold">
+                    <span>Total Paid</span>
+                    <span>{formatMoney(selectedRow.amount)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex gap-2">
+                <button type="button" onClick={closeAllModals} className="h-9 flex-1 rounded-lg bg-blue-600 text-sm font-semibold text-white">
+                  Done
+                </button>
+              </div>
+            </div>
+          )}
           </div>,
           document.body,
         )}
     </div>
   );
 }
+
