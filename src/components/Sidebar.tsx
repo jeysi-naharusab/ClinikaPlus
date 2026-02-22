@@ -61,25 +61,30 @@ function Group({
   label: string;
   children?: React.ReactNode;
 }) {
-  if (!active) {
-    return (
+  return (
+    <div
+      className={`overflow-hidden rounded-lg transition-colors duration-300 ${
+        active ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-800'
+      }`}
+    >
       <NavLink
         to={to}
-        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-base font-semibold text-gray-800 hover:bg-gray-200 transition"
+        className={`flex items-center gap-2.5 px-3 py-2 text-base font-semibold transition-colors duration-300 ${
+          active ? 'hover:bg-white/10' : 'hover:bg-gray-200'
+        }`}
       >
         <Icon size={18} />
         {label}
       </NavLink>
-    );
-  }
-
-  return (
-    <div className="overflow-hidden rounded-lg bg-blue-600 text-white">
-      <NavLink to={to} className="flex items-center gap-2.5 px-3 py-2 text-base font-semibold hover:bg-white/10 transition">
-        <Icon size={18} />
-        {label}
-      </NavLink>
-      <div>{children}</div>
+      <div
+        className={`grid transition-all duration-300 ease-in-out ${
+          active ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="pb-1">{children}</div>
+        </div>
+      </div>
     </div>
   );
 }

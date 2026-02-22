@@ -1,4 +1,5 @@
 import { AlertTriangle, BellRing, Truck, HandCoins, Boxes, TrendingUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const alerts = [
   {
@@ -32,6 +33,8 @@ const inventoryRows = [
 ];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-5">
       <h1 className="text-3xl font-bold tracking-tight text-gray-800">Overview</h1>
@@ -76,9 +79,18 @@ export default function Dashboard() {
         </div>
 
         <div className="rounded-2xl bg-gray-100 p-5 grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
-          <div className="flex items-center justify-center gap-3">
-            <BellRing size={52} className="text-red-500" />
-            <h2 className="text-2xl leading-tight font-semibold text-gray-500">Alerts & Operational Risks</h2>
+          <div className="flex flex-col items-center justify-center gap-3">
+            <div className="flex items-center justify-center gap-3">
+              <BellRing size={52} className="text-red-500" />
+              <h2 className="text-2xl leading-tight font-semibold text-gray-500">Alerts & Operational Risks</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/inventory/alerts')}
+              className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+            >
+              View Alerts
+            </button>
           </div>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
             {alerts.map((item, index) => (
@@ -100,7 +112,13 @@ export default function Dashboard() {
                 <Boxes size={21} />
                 Inventory Highlights
               </h3>
-              <button className="text-blue-600 text-base font-semibold">See All</button>
+              <button
+                type="button"
+                onClick={() => navigate('/inventory/current-stocks')}
+                className="text-blue-600 text-base font-semibold"
+              >
+                See All
+              </button>
             </div>
 
             <table className="w-full text-sm border-separate border-spacing-y-2">
@@ -141,6 +159,13 @@ export default function Dashboard() {
               <div className="text-gray-500">
                 <Truck size={44} className="text-blue-600 mb-2" />
                 <h3 className="text-xl leading-tight font-semibold">Restocking Overview</h3>
+                <button
+                  type="button"
+                  onClick={() => navigate('/inventory/restock')}
+                  className="mt-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                >
+                  View Restocking
+                </button>
               </div>
               <div>
                 <div className="inline-block rounded-full bg-blue-600 px-3 py-1 text-white text-xs mb-2">Suggested Orders</div>
@@ -163,6 +188,13 @@ export default function Dashboard() {
               <div className="text-gray-500">
                 <TrendingUp size={44} className="text-green-500 mb-2" />
                 <h3 className="text-xl leading-tight font-semibold">Financial Summary</h3>
+                <button
+                  type="button"
+                  onClick={() => navigate('/reports/revenue')}
+                  className="mt-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                >
+                  View Reports
+                </button>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm font-semibold text-gray-700">
                 <div>
