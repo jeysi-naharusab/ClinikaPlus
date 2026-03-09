@@ -15,6 +15,9 @@ import {
   MapPin,
   ImagePlus,
   CheckCircle2,
+  ClipboardList,
+  Shield,
+  CircleDot,
 } from 'lucide-react';
 import Button from '../../components/ui/Button.tsx';
 import {
@@ -274,6 +277,32 @@ export default function RestockSuppliers() {
     });
   }, [alignedSuppliers, statusFilter]);
 
+  const selectedSupplierRequests = useMemo(() => {
+    if (!selectedSupplier) return [];
+    return restockRequests
+      .filter(
+        (request) =>
+          request.supplierId === selectedSupplier.supplierId || request.supplier === selectedSupplier.name,
+      )
+      .sort((a, b) => new Date(b.requestedOnIso).getTime() - new Date(a.requestedOnIso).getTime());
+  }, [restockRequests, selectedSupplier]);
+
+  const frequentSupplierMedications = useMemo(() => {
+    const grouped = selectedSupplierRequests.reduce<Record<string, number>>((acc, request) => {
+      acc[request.medication] = (acc[request.medication] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(grouped)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([medication]) => medication);
+  }, [selectedSupplierRequests]);
+
+  const recentSupplierHistory = useMemo(() => {
+    return selectedSupplierRequests.slice(0, 7);
+  }, [selectedSupplierRequests]);
+
   function statusCardClass(status: RequestStatus) {
     if (status === 'Completed') return 'border-[#22C55E] bg-[#22C55E]/15';
     if (status === 'Pending') return 'border-[#F59E0B] bg-[#F59E0B]/15';
@@ -290,6 +319,18 @@ export default function RestockSuppliers() {
     if (status === 'Completed') return 'bg-[#22C55E] hover:bg-[#16A34A]';
     if (status === 'Pending') return 'bg-[#F59E0B] hover:bg-[#D97706]';
     return 'bg-[#EF4444] hover:bg-[#DC2626]';
+  }
+
+  function supplierStatusBadgeClass(status: SupplierStatus) {
+    if (status === 'Preferred') return 'bg-[#22C55E]/15 text-[#22C55E]';
+    if (status === 'Active') return 'bg-blue-100 text-blue-700';
+    return 'bg-amber-100 text-amber-700';
+  }
+
+  function tableStatusChipClass(status: RequestStatus) {
+    if (status === 'Completed') return 'bg-[#22C55E]/20 text-[#16A34A]';
+    if (status === 'Pending') return 'bg-[#F59E0B]/20 text-[#B45309]';
+    return 'bg-[#EF4444]/20 text-[#B91C1C]';
   }
 
   function openViewRequest(request: RestockRequest) {
@@ -956,24 +997,119 @@ export default function RestockSuppliers() {
       {modal === 'viewSupplier' && selectedSupplier && (
         <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/20 p-4 pb-6 pt-20 backdrop-blur-[1px]" onClick={() => setModal('none')}>
           <div className="w-full max-w-[760px] rounded-2xl border border-gray-300 bg-gray-100 p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-3 flex items-center justify-between border-b border-gray-300 pb-3">
-              <div className="flex items-center gap-3">
-                <div className="h-16 w-16 rounded-full bg-gray-200" />
+            <div className="mb-4 flex items-center justify-between border-b border-gray-300 pb-3">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-gray-300 bg-white text-base font-bold text-blue-600">
+                  {selectedSupplier.name
+                    .split(' ')
+                    .map((namePart) => namePart[0] || '')
+                    .join('')
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </div>
                 <div>
                   <h3 className="text-2xl font-bold text-gray-800">{selectedSupplier.name}</h3>
-                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-600">{selectedSupplier.status}</span>
+                  <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${supplierStatusBadgeClass(selectedSupplier.status)}`}>
+                    {selectedSupplier.status}
+                  </span>
                 </div>
               </div>
-              <button type="button" onClick={() => setModal('none')} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gray-300 text-gray-600">
-                <X size={14} />
-              </button>
+
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-gray-600">
+                  <Phone className="h-3.5 w-3.5" />
+                </span>
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-gray-600">
+                  <Mail className="h-3.5 w-3.5" />
+                </span>
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-gray-600">
+                  <MapPin className="h-3.5 w-3.5" />
+                </span>
+                <button type="button" onClick={() => setModal('none')} className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-gray-300 text-gray-600">
+                  <X size={14} />
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-4 text-sm">
-              <div><p className="text-gray-500">Total Requests</p><p className="font-semibold text-gray-800">{selectedSupplier.totalRequests}</p></div>
-              <div><p className="text-gray-500">Completed</p><p className="font-semibold text-gray-800">{selectedSupplier.completed}</p></div>
-              <div><p className="text-gray-500">Cancelled</p><p className="font-semibold text-gray-800">{selectedSupplier.cancelled}</p></div>
-              <div><p className="text-gray-500">Pending</p><p className="font-semibold text-gray-800">{Math.max(0, selectedSupplier.totalRequests - selectedSupplier.completed - selectedSupplier.cancelled)}</p></div>
+            <div className="grid grid-cols-2 gap-3 border-b border-gray-300 pb-3 text-sm md:grid-cols-4">
+              <div>
+                <p className="text-gray-500">Total Requests</p>
+                <p className="font-semibold text-gray-800">{selectedSupplier.totalRequests}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Completed</p>
+                <p className="font-semibold text-gray-800">{selectedSupplier.completed}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Cancelled</p>
+                <p className="font-semibold text-gray-800">{selectedSupplier.cancelled}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Pending</p>
+                <p className="font-semibold text-gray-800">
+                  {Math.max(0, selectedSupplier.totalRequests - selectedSupplier.completed - selectedSupplier.cancelled)}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[230px_1fr]">
+              <section className="rounded-xl border border-gray-300 bg-white p-3">
+                <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Shield className="h-4 w-4 text-gray-500" />
+                  Frequently Supplied Medication
+                </h4>
+                <div className="space-y-2 text-sm text-gray-800">
+                  {frequentSupplierMedications.length > 0 ? (
+                    frequentSupplierMedications.map((medication) => (
+                      <p key={medication} className="flex items-center gap-2">
+                        <CircleDot className="h-3.5 w-3.5 text-blue-500" />
+                        {medication}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="text-xs text-gray-500">No supplied medications yet.</p>
+                  )}
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-gray-300 bg-white p-3">
+                <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <ClipboardList className="h-4 w-4 text-gray-500" />
+                  Recent Procurement History
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full table-fixed text-xs">
+                    <thead className="text-gray-500">
+                      <tr>
+                        <th className="w-[30%] px-1 py-1 text-left font-semibold">Date</th>
+                        <th className="w-[42%] px-1 py-1 text-left font-semibold">Medication</th>
+                        <th className="w-[28%] px-1 py-1 text-left font-semibold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentSupplierHistory.length > 0 ? (
+                        recentSupplierHistory.map((request) => (
+                          <tr key={`${request.id}-${request.requestedOnIso}`} className="border-t border-gray-200 text-gray-700">
+                            <td className="px-1 py-1.5">{request.requestedOnIso.slice(0, 10)}</td>
+                            <td className="px-1 py-1.5">{request.medication}</td>
+                            <td className="px-1 py-1.5">
+                              <span className={`inline-flex rounded-full px-2 py-0.5 font-semibold ${tableStatusChipClass(request.status)}`}>
+                                {request.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className="px-1 py-2 text-gray-500">
+                            No procurement history available.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
             </div>
           </div>
         </div>
