@@ -9,14 +9,10 @@ import {
   LogOut,
   HeartPulse,
   Boxes,
-  TriangleAlert,
   Truck,
   FileText,
-  CreditCard,
-  LineChart,
-  Shield,
 } from 'lucide-react';
-import { RESTOCK_REQUESTS_CHANGED_EVENT } from '../pages/inventory/restockRequestsStore.ts';
+import { RESTOCK_REQUESTS_CHANGED_EVENT } from '../pages/pharmacy/restockRequestsStore';
 
 type LinkIcon = React.ComponentType<{ size?: number; className?: string }>;
 type BadgeCount = number;
@@ -130,9 +126,8 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const [inventoryAlertCount, setInventoryAlertCount] = useState(0);
 
-  const inventoryActive = pathname.startsWith('/inventory');
-  const billingActive = pathname.startsWith('/billing');
-  const reportsActive = pathname.startsWith('/reports');
+  const pharmacyActive = pathname.startsWith('/pharmacy') || pathname.startsWith('/inventory') || pathname.startsWith('/restock') || pathname.startsWith('/suppliers');
+  const billingActive = pathname.startsWith('/billing') || pathname.startsWith('/reports');
 
   useEffect(() => {
     let isMounted = true;
@@ -140,13 +135,9 @@ export default function Sidebar() {
     async function loadInventoryAlertCount() {
       try {
         const response = await fetch(`${API_BASE_URL}/inventory-alerts`);
-        if (!response.ok) {
-          throw new Error('Failed to load inventory alerts counter.');
-        }
-
+        if (!response.ok) throw new Error('Failed to load inventory alerts counter.');
         const json = (await response.json()) as { items: InventoryAlertApiItem[] };
         const nextCount = (json.items || []).length;
-
         if (isMounted) setInventoryAlertCount(nextCount);
       } catch {
         if (isMounted) setInventoryAlertCount(0);
@@ -176,7 +167,7 @@ export default function Sidebar() {
       window.localStorage.removeItem('auth');
       window.localStorage.removeItem('token');
     } catch {
-      // No-op for restricted storage environments.
+      // No-op
     }
     navigate('/dashboard');
   }
@@ -193,25 +184,19 @@ export default function Sidebar() {
         <TopLink to="/dashboard" label="Overview" icon={LayoutDashboard} />
 
         <Group
-          to="/inventory/current-stocks"
-          active={inventoryActive}
-          label="Inventory"
+          to="/pharmacy/inventory"
+          active={pharmacyActive}
+          label="Pharmacy"
           icon={Package}
           badgeCount={inventoryAlertCount}
         >
-          <SubLink to="/inventory/current-stocks" label="Current Stocks" icon={Boxes} />
-          <SubLink to="/inventory/alerts" label="Inventory Alerts" icon={TriangleAlert} badgeCount={inventoryAlertCount} />
-          <SubLink to="/inventory/restock" label="Restock & Suppliers" icon={Truck} />
+          <SubLink to="/pharmacy/inventory" label="Inventory & Alerts" icon={Boxes} badgeCount={inventoryAlertCount} />
+          <SubLink to="/pharmacy/restock" label="Restock & Suppliers" icon={Truck} />
         </Group>
 
-        <Group to="/billing/records" active={billingActive} label="Billing & Payments" icon={Receipt}>
-          <SubLink to="/billing/records" label="Billing Records" icon={FileText} />
-          <SubLink to="/billing/payments" label="Payments" icon={CreditCard} />
-        </Group>
-
-        <Group to="/reports/revenue" active={reportsActive} label="Reports & Insurance" icon={BarChart3}>
-          <SubLink to="/reports/revenue" label="Revenue Reports" icon={LineChart} />
-          <SubLink to="/reports/claims" label="Insurance Claims" icon={Shield} />
+        <Group to="/billing" active={billingActive} label="Billing & Reports" icon={Receipt}>
+          <SubLink to="/billing" label="Billing & Payments" icon={FileText} />
+          <SubLink to="/billing/reports" label="Reports" icon={BarChart3} />
         </Group>
       </nav>
 

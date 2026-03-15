@@ -28,9 +28,9 @@ import {
   updateRestockRequest,
   type RestockRequestSeverity,
   type RestockRequestStatus,
-} from './restockRequestsStore.ts';
+} from '../pharmacy/restockRequestsStore.ts';
 import { useLocation } from 'react-router-dom';
-import { emitGlobalSearchRefresh } from '../../context/globalSearchEvents.ts';
+import { emitGlobalSearchRefresh } from '../../context/globalSearchEvents';
 
 type RequestSeverity = RestockRequestSeverity;
 type RequestStatus = RestockRequestStatus;

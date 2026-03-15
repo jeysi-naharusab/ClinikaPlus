@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { RESTOCK_REQUESTS_CHANGED_EVENT } from '../pages/inventory/restockRequestsStore.ts';
-import { GLOBAL_SEARCH_REFRESH_EVENT } from './globalSearchEvents.ts';
+import { RESTOCK_REQUESTS_CHANGED_EVENT } from '../pages/pharmacy/restockRequestsStore';
+import { GLOBAL_SEARCH_REFRESH_EVENT } from './globalSearchEvents';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -204,4 +204,3 @@ export function useGlobalSearchData() {
   }
   return context;
 }
-

@@ -1,15 +1,10 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
-
-// Pages
 import Dashboard from './pages/Dashboard';
-import CurrentStocks from './pages/inventory/CurrentStocks';
-import InventoryAlerts from './pages/inventory/InventoryAlerts';
-import RestockSuppliers from './pages/inventory/RestockSuppliers';
-import BillingRecords from './pages/billing/BillingRecords';
-import Payments from './pages/billing/Payments';
-import RevenueReports from './pages/reports/RevenueReports';
-import InsuranceClaims from './pages/reports/InsuranceClaims';
+import CurrentStocks from './pages/pharmacy/CurrentStocks';
+import RestockSuppliers from './pages/pharmacy/RestockSuppliers';
+import BillingAndPayments from './pages/billing/BillingandPayments';
+import RevenueReports from './pages/billing/RevenueReports';
 import Settings from './pages/Settings';
 
 const router = createBrowserRouter([
@@ -19,21 +14,21 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'dashboard', element: <Dashboard /> },
-      { path: 'inventory/current-stocks', element: <CurrentStocks /> },
+      // Pharmacy — Inventory & Alerts
+      { path: 'pharmacy/inventory', element: <CurrentStocks /> },
       { path: 'inventory', element: <CurrentStocks /> },
-      { path: 'inventory/alerts', element: <InventoryAlerts /> },
-      { path: 'alerts', element: <InventoryAlerts /> },
-      { path: 'inventory/restock', element: <RestockSuppliers /> },
+      { path: 'inventory/alerts', element: <CurrentStocks /> },
+      // Pharmacy — Restock & Suppliers
+      { path: 'pharmacy/restock', element: <RestockSuppliers /> },
       { path: 'restock', element: <RestockSuppliers /> },
       { path: 'suppliers', element: <RestockSuppliers /> },
-      { path: 'billing/records', element: <BillingRecords /> },
-      { path: 'billing', element: <BillingRecords /> },
-      { path: 'billing/payments', element: <Payments /> },
-      { path: 'payments', element: <Payments /> },
-      { path: 'reports/revenue', element: <RevenueReports /> },
-      { path: 'revenue', element: <RevenueReports /> },
-      { path: 'reports/claims', element: <InsuranceClaims /> },
-      { path: 'insurance-claims', element: <InsuranceClaims /> },
+      // Billing & Reports
+      { path: 'billing', element: <BillingAndPayments /> },
+      { path: 'billing/records', element: <BillingAndPayments /> },
+      { path: 'billing/payments', element: <BillingAndPayments /> },
+      { path: 'billing/reports', element: <RevenueReports /> },
+      { path: 'reports', element: <RevenueReports /> },
+      // Settings
       { path: 'settings', element: <Settings /> },
     ],
   },

@@ -297,7 +297,7 @@ export default function Dashboard() {
               </h3>
               <button
                 type="button"
-                onClick={() => navigate('/inventory/current-stocks')}
+                onClick={() => navigate('/inventory')}
                 className="text-blue-600 text-base font-semibold"
               >
                 See All
@@ -374,7 +374,7 @@ export default function Dashboard() {
                 <h3 className="text-xl leading-tight font-semibold">Restocking Overview</h3>
                 <button
                   type="button"
-                  onClick={() => navigate('/inventory/restock')}
+                  onClick={() => navigate('/restock')}
                   className="mt-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
                 >
                   View Restocking

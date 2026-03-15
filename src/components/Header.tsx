@@ -23,14 +23,13 @@ type SearchResult = {
 };
 
 const NAVIGATION_ENTRIES: NavigationEntry[] = [
-  { id: 'nav-current-stocks', label: 'Current Stocks', path: '/inventory', keywords: ['stocks', 'inventory', 'medicines', 'medication'] },
-  { id: 'nav-inventory-alerts', label: 'Inventory Alerts', path: '/alerts', keywords: ['alerts', 'warnings', 'expiry', 'critical'] },
-  { id: 'nav-restock-requests', label: 'Restock Requests', path: '/restock', keywords: ['restock', 'requests', 'purchase', 'order'] },
-  { id: 'nav-suppliers', label: 'Suppliers', path: '/suppliers', keywords: ['suppliers', 'vendor', 'pharma'] },
+{ id: 'nav-pharmacy-inventory', label: 'Pharmacy Inventory', path: '/pharmacy/inventory', keywords: ['stocks', 'inventory', 'medicines', 'medication', 'alerts', 'warnings'] },
+  { id: 'nav-restock-requests', label: 'Restock Requests', path: '/pharmacy/restock', keywords: ['restock', 'requests', 'purchase', 'order'] },
+  { id: 'nav-suppliers', label: 'Suppliers', path: '/pharmacy/restock', keywords: ['suppliers', 'vendor', 'pharma'] },
   { id: 'nav-billing', label: 'Billing', path: '/billing', keywords: ['billing', 'bills', 'charges', 'invoice'] },
   { id: 'nav-payments', label: 'Payments', path: '/payments', keywords: ['payments', 'cash', 'gcash', 'maya'] },
   { id: 'nav-revenue', label: 'Revenue Reports', path: '/revenue', keywords: ['revenue', 'reports', 'analytics', 'finance'] },
-  { id: 'nav-insurance', label: 'Insurance Claims', path: '/insurance-claims', keywords: ['insurance', 'claims', 'philhealth', 'maxicare'] },
+
 ];
 
 function normalize(text: string) {
